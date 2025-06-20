@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   getFirestore,
@@ -37,8 +37,9 @@ export default function ChatPage() {
   const [user, setUser] = useState<User | null>(null);
   const [text, setText] = useState('');
   const [msgs, setMsgs] = useState<Message[]>([]);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  // 認証されたユーザーを取得
+  // ログイン中のユーザーを取得
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -78,7 +79,7 @@ export default function ChatPage() {
     return () => unsubscribe();
   }, [user, trainerId]);
 
-  // メッセージ送信
+  // メッセージ送信（送信後にスクロール）
   const handleSend = async () => {
     if (!text.trim() || !user || !trainerId) return;
 
@@ -92,6 +93,11 @@ export default function ChatPage() {
     });
 
     setText('');
+
+    // 自分の送信時だけスクロール
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   return (
@@ -119,6 +125,7 @@ export default function ChatPage() {
             </div>
           );
         })}
+        <div ref={bottomRef} />
       </div>
 
       <div className="flex space-x-2">
