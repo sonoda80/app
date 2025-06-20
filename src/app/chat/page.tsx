@@ -1,16 +1,24 @@
-// src/app/chat/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  getFirestore, collection, addDoc,
-  onSnapshot, query, orderBy, where
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  where,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import {
+  getAuth,
+  onAuthStateChanged,
+  User,
+} from 'firebase/auth';
 import { firebaseApp } from '@/lib/firebase';
 
-const db   = getFirestore(firebaseApp);
+const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 
 type Message = {
@@ -24,60 +32,73 @@ type Message = {
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
-  const trainerId    = searchParams.get('trainerId') || '';
-  const user         = auth.currentUser;
+  const trainerId = searchParams.get('trainerId') || '';
 
+  const [user, setUser] = useState<User | null>(null);
   const [text, setText] = useState('');
   const [msgs, setMsgs] = useState<Message[]>([]);
 
-  // ① 該当1対1メッセージのみをリアルタイム取得
+  // 認証されたユーザーを取得
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // メッセージのリアルタイム取得
   useEffect(() => {
     if (!user || !trainerId) return;
+
     const q = query(
       collection(db, 'messages'),
       where('participants', 'array-contains', user.uid),
       orderBy('createdAt', 'asc')
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setMsgs(
-        snap.docs
-          .map((d) => ({
-            id: d.id,
-            text: d.data().text,
-            createdAt: d.data().createdAt?.toDate() ?? new Date(),
-            userEmail: d.data().userEmail,
-            userId:    d.data().userId,
-            peerId:    d.data().peerId,
-          }))
-          .filter(
-            (m) =>
-              (m.userId === user.uid && m.peerId === trainerId) ||
-              (m.userId === trainerId && m.peerId === user.uid)
-          )
-      );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const filtered = snap.docs
+        .map((doc) => ({
+          id: doc.id,
+          text: doc.data().text,
+          createdAt: doc.data().createdAt?.toDate() ?? new Date(),
+          userEmail: doc.data().userEmail,
+          userId: doc.data().userId,
+          peerId: doc.data().peerId,
+        }))
+        .filter(
+          (m) =>
+            (m.userId === user.uid && m.peerId === trainerId) ||
+            (m.userId === trainerId && m.peerId === user.uid)
+        );
+
+      setMsgs(filtered);
     });
-    return () => unsub();
+
+    return () => unsubscribe();
   }, [user, trainerId]);
 
-  // ② 送信時に participants と peerId をセット
+  // メッセージ送信
   const handleSend = async () => {
     if (!text.trim() || !user || !trainerId) return;
+
     await addDoc(collection(db, 'messages'), {
       text,
       createdAt: new Date(),
-      userId:    user.uid,
-      userEmail: user.email,
-      peerId:    trainerId,
-      // 「この2人のチャットですよ」とわかる配列
+      userId: user.uid,
+      userEmail: user.email ?? '',
+      peerId: trainerId,
       participants: [user.uid, trainerId],
     });
+
     setText('');
   };
 
   return (
     <div className="max-w-xl mx-auto mt-10 p-4 border rounded shadow">
       <h2 className="text-xl font-bold mb-4">チャット</h2>
-      <div className="mb-4 h-60 overflow-y-auto space-y-2">
+
+      <div className="mb-4 h-60 overflow-y-auto space-y-2 bg-gray-50 p-2 rounded">
         {msgs.map((m) => {
           const isMe = m.userId === user?.uid;
           return (
@@ -99,6 +120,7 @@ export default function ChatPage() {
           );
         })}
       </div>
+
       <div className="flex space-x-2">
         <input
           value={text}
