@@ -2,14 +2,24 @@
 'use client';
 
 import { useState } from 'react';
+import type { ChallengeGoals } from './ChallengeGoalModal';
+
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (statuses: { [key: string]: '○' | '×' }) => void;
+  goals: ChallengeGoals;
+  onOpenGoalSetting: () => void;
 };
 
-export default function ChallengeModal({ isOpen, onClose, onSubmit }: Props) {
+export default function ChallengeModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  goals,
+  onOpenGoalSetting,
+}: Props) {
   // まずは３つの目標ステータスだけ管理
   const [sts1, setSts1] = useState<'○' | '×'>('×');
   const [sts2, setSts2] = useState<'○' | '×'>('×');
@@ -27,12 +37,16 @@ export default function ChallengeModal({ isOpen, onClose, onSubmit }: Props) {
         </button>
         <h3 className="text-lg font-bold mb-4">本日のチャレンジ</h3>
 
-        {/* 目標設定（今は文字だけ） */}
-        <p className="mb-4 text-sm text-gray-600">目標設定</p>
+       <button
+          onClick={onOpenGoalSetting}
+          className="mb-4 bg-blue-500 text-white px-3 py-1 rounded"
+        >
+          チャレンジ目標設定
+        </button>
 
         {/* 目標１ */}
         <div className="flex items-center justify-between mb-3">
-          <span>目標１：（内容）</span>
+          <span>目標１：{goals.goal1}</span>
           <div>
             <button
               onClick={() => setSts1('○')}
@@ -47,7 +61,7 @@ export default function ChallengeModal({ isOpen, onClose, onSubmit }: Props) {
 
         {/* 目標２ */}
         <div className="flex items-center justify-between mb-3">
-          <span>目標２：（内容）</span>
+          <span>目標２：{goals.goal2}</span>
           <div>
             <button
               onClick={() => setSts2('○')}
@@ -62,7 +76,7 @@ export default function ChallengeModal({ isOpen, onClose, onSubmit }: Props) {
 
         {/* 目標３ */}
         <div className="flex items-center justify-between mb-6">
-          <span>目標３：（内容）</span>
+          <span>目標３：{goals.goal3}</span>
           <div>
             <button
               onClick={() => setSts3('○')}

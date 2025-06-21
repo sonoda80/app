@@ -20,6 +20,7 @@ import MealModal from "@/components/MealModal";
 import ExerciseModal from "@/components/ExerciseModal";
 import WeightModal from "@/components/WeightModal";
 import ChallengeModal from "@/components/ChallengeModal";
+import ChallengeGoalModal, { ChallengeGoals } from "@/components/ChallengeGoalModal";
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 type Message = {
@@ -44,6 +45,12 @@ export default function ChatPage() {
   const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [challengeModalOpen, setChallengeModalOpen] = useState(false);
+  const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [goals, setGoals] = useState<ChallengeGoals>({
+    goal1: '',
+    goal2: '',
+    goal3: '',
+  });
 
   /*朝食*/
   const handleMealSubmit = async (
@@ -174,6 +181,13 @@ export default function ChatPage() {
     );
   };
 
+const handleGoalSubmit = async (newGoals: ChallengeGoals) => {
+    if (!user) return;
+    const ref = doc(db, 'users', user.uid, 'challengeGoals', 'current');
+    await setDoc(ref, newGoals, { merge: true });
+    setGoals(newGoals);
+  };
+
   // 認証されたユーザーを取得＋role取得
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
@@ -222,6 +236,24 @@ export default function ChatPage() {
 
     return () => unsubscribe();
   }, [user, trainerId]);
+
+// チャレンジ目標の取得
+  useEffect(() => {
+    if (!user) return;
+    const fetchGoals = async () => {
+      const ref = doc(db, 'users', user.uid, 'challengeGoals', 'current');
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data();
+        setGoals({
+          goal1: data.goal1 ?? '',
+          goal2: data.goal2 ?? '',
+          goal3: data.goal3 ?? '',
+        });
+      }
+    };
+    fetchGoals();
+  }, [user]);
 
   // メッセージ送信＋スクロール
   const handleSend = async () => {
@@ -334,6 +366,14 @@ export default function ChatPage() {
           isOpen={challengeModalOpen}
           onClose={() => setChallengeModalOpen(false)}
           onSubmit={handleChallengeSubmit}
+           goals={goals}
+          onOpenGoalSetting={() => setGoalModalOpen(true)}
+        />
+        <ChallengeGoalModal
+          isOpen={goalModalOpen}
+          onClose={() => setGoalModalOpen(false)}
+          onSubmit={handleGoalSubmit}
+          initialGoals={goals}
         />
         {role === "trainer" && (
           <button className="bg-blue-700 text-white px-3 py-1 rounded">
