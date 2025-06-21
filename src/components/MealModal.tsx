@@ -6,13 +6,12 @@ import { Dispatch, SetStateAction, useState } from 'react';
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (mealType: '朝食' | '昼食' | '夕食' | '間食', foodInput: string, photoFile: File | null) => void;
+  onSubmit: (mealType: '朝食' | '昼食' | '夕食' | '間食', foodInput: string) => void;
 };
 
 export default function MealModal({ isOpen, onClose, onSubmit }: Props) {
   const [mealType, setMealType] = useState<'朝食'|'昼食'|'夕食'|'間食'>('朝食');
   const [foodInput, setFoodInput] = useState('');
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   if (!isOpen) return null;
 
@@ -56,23 +55,11 @@ export default function MealModal({ isOpen, onClose, onSubmit }: Props) {
           />
         </div>
 
-        {/* 写真貼り付け欄 */}
-        <div className="mb-4">
-          <label className="block text-sm mb-1">写真 (任意)</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-            className="w-full"
-          />
-        </div>
-
         {/* 送信ボタン */}
         <button
           onClick={() => {
-            onSubmit(mealType, foodInput, photoFile);
+            onSubmit(mealType, foodInput);
             setFoodInput('');
-            setPhotoFile(null);
           }}
           className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
         >

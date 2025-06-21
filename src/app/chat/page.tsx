@@ -19,6 +19,7 @@ import { firebaseApp } from "@/lib/firebase";
 import MealModal from "@/components/MealModal";
 import ExerciseModal from "@/components/ExerciseModal";
 import WeightModal from "@/components/WeightModal";
+import ChallengeModal from "@/components/ChallengeModal";
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 type Message = {
@@ -42,21 +43,15 @@ export default function ChatPage() {
   const [mealModalOpen, setMealModalOpen] = useState(false);
   const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
   const [weightModalOpen, setWeightModalOpen] = useState(false);
+  const [challengeModalOpen, setChallengeModalOpen] = useState(false);
+
+  /*朝食*/
   const handleMealSubmit = async (
     mealType: "朝食" | "昼食" | "夕食" | "間食",
-    foodInput: string,
-    photoFile: File | null
+    foodInput: string
   ) => {
     if (!user || !trainerId) return;
-    // 1) まずはメッセージ本文を組み立て
     const messageText = `${mealType}：${foodInput}`;
-
-    // 2) （必要なら）写真を Storage にアップロードして URL を取得
-    //    ここでは省略しますが、photoFile があるときは
-    //    uploadBytes → getDownloadURL で photoUrl を取得, then:
-    //    messageText += `\n📷: ${photoUrl}`;
-
-    // 3) Firestore にメッセージとして投稿
     await addDoc(collection(db, "messages"), {
       text: messageText,
       createdAt: new Date(),
@@ -65,10 +60,7 @@ export default function ChatPage() {
       peerId: trainerId,
       participants: [user.uid, trainerId],
     });
-    // 🔹 日付を "YYYY-MM-DD" 形式で取得
     const today = new Date().toISOString().split("T")[0];
-
-    // 🔹 Firestoreの meals サブコレクションへ保存
     const mealDocRef = doc(db, "users", user.uid, "meals", today);
     const existing = await getDoc(mealDocRef);
 
@@ -81,16 +73,13 @@ export default function ChatPage() {
         [mealType]: foodInput,
       });
     }
-    // 4) モーダルを閉じてフォームクリア
     setMealModalOpen(false);
-
-    // 5) 送信後にチャット最下部へスクロール
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
 
-  // 運動送信処理
+  /*運動*/
   const handleExerciseSubmit = async (exerciseName: string, detail: string) => {
     if (!user || !trainerId) return;
 
@@ -104,9 +93,7 @@ export default function ChatPage() {
       peerId: trainerId,
       participants: [user.uid, trainerId],
     });
-
-    // Firestoreに運動記録としても保存（例：/users/{uid}/exercises/{日付}）
-    const today = new Date().toISOString().split("T")[0]; // 例: 2025-06-21
+    const today = new Date().toISOString().split("T")[0];
     const exerciseDocRef = doc(db, "users", user.uid, "exercises", today);
     const existing = await getDoc(exerciseDocRef);
 
@@ -127,13 +114,13 @@ export default function ChatPage() {
     );
   };
 
+  /*体重*/
   const handleWeightSubmit = async (weight: number) => {
     if (!user || !trainerId) return;
 
     const today = new Date().toISOString().split("T")[0];
     const weightText = `⚖️ ${today}の体重：${weight}kg`;
 
-    // チャット投稿
     await addDoc(collection(db, "messages"), {
       text: weightText,
       createdAt: new Date(),
@@ -143,7 +130,6 @@ export default function ChatPage() {
       participants: [user.uid, trainerId],
     });
 
-    // Firestore 保存
     const weightRef = doc(db, "users", user.uid, "weights", today);
     await setDoc(weightRef, {
       weight,
@@ -153,6 +139,39 @@ export default function ChatPage() {
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
+  };
+
+  /*チャレンジ*/
+  const handleChallengeSubmit = async (statuses: {
+    [key: string]: "○" | "×";
+  }) => {
+    if (!user || !trainerId) return;
+
+    const parts = Object.entries(statuses).map(([k, v]) => `${k}：${v}`);
+    const messageText = "🎯 チャレンジ結果\n" + parts.join("\n");
+    await addDoc(collection(db, "messages"), {
+      text: messageText,
+      createdAt: new Date(),
+      userId: user.uid,
+      userEmail: user.email ?? "",
+      peerId: trainerId,
+      participants: [user.uid, trainerId],
+    });
+
+    const today = new Date().toISOString().split("T")[0];
+    const docRef = doc(db, "users", user.uid, "challenges", today);
+    const snap = await getDoc(docRef);
+    const data = { ...statuses, updatedAt: new Date() };
+    if (snap.exists()) {
+      await updateDoc(docRef, data);
+    } else {
+      await setDoc(docRef, data);
+    }
+
+    setTimeout(
+      () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
+      100
+    );
   };
 
   // 認証されたユーザーを取得＋role取得
@@ -281,7 +300,10 @@ export default function ChatPage() {
             >
               🏃‍♂️ 運動
             </button>
-            <button className="bg-purple-500 text-white px-3 py-1 rounded">
+            <button
+              onClick={() => setChallengeModalOpen(true)}
+              className="bg-purple-500 text-white px-3 py-1 rounded"
+            >
               🌟 チャレンジ
             </button>
             <button
@@ -307,6 +329,11 @@ export default function ChatPage() {
           isOpen={weightModalOpen}
           onClose={() => setWeightModalOpen(false)}
           onSubmit={handleWeightSubmit}
+        />
+        <ChallengeModal
+          isOpen={challengeModalOpen}
+          onClose={() => setChallengeModalOpen(false)}
+          onSubmit={handleChallengeSubmit}
         />
         {role === "trainer" && (
           <button className="bg-blue-700 text-white px-3 py-1 rounded">
