@@ -115,6 +115,12 @@ export default function ClientDashboard() {
       >
         過去データ確認
       </Link>
+      <Link
+        href="/client/weights"
+        className="block mt-4 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"
+      >
+        体重推移グラフ
+      </Link>
       <button
         onClick={handleLogout}
         className="mt-4 w-full bg-gray-500 text-white py-2 rounded hover:bg-gray-600"
