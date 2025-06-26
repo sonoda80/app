@@ -23,6 +23,9 @@ import ChallengeModal from "@/components/ChallengeModal";
 import ChallengeGoalModal, {
   ChallengeGoals,
 } from "@/components/ChallengeGoalModal";
+import WeeklySummaryModal, {
+  WeeklySummaryData,
+} from "@/components/WeeklySummaryModal";
 import Link from "next/link";
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
@@ -56,7 +59,9 @@ export default function ChatPage() {
     goal3: "",
   });
   const [surveyUnread, setSurveyUnread] = useState(false);
-
+  const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [summaryUnread, setSummaryUnread] = useState(false);
+  const [weeklyData, setWeeklyData] = useState<WeeklySummaryData | null>(null);
   /*朝食*/
   const handleMealSubmit = async (
     mealType: "朝食" | "昼食" | "夕食" | "間食",
@@ -192,6 +197,112 @@ export default function ChatPage() {
     await setDoc(ref, newGoals, { merge: true });
     setGoals(newGoals);
   };
+  const fetchWeeklyData = async () => {
+    if (!trainerId) return null;
+    const end = new Date();
+    const start = new Date(end.getTime() - 6 * 86400000);
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start.getTime() + i * 86400000);
+      dates.push(d.toISOString().split("T")[0]);
+    }
+
+    const weightSnaps = await Promise.all(
+      dates.map((d) => getDoc(doc(db, "users", trainerId, "weights", d)))
+    );
+    const weights = weightSnaps
+      .map((s, idx) =>
+        s.exists()
+          ? { date: dates[idx], weight: s.data().weight as number }
+          : null
+      )
+      .filter(Boolean) as { date: string; weight: number }[];
+    let weightDiffText = "データなし";
+    if (weights.length >= 2) {
+      const diff = weights[weights.length - 1].weight - weights[0].weight;
+      weightDiffText = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} kg（${
+        weights[0].weight
+      }kg → ${weights[weights.length - 1].weight}kg）`;
+    }
+
+    const challengeSnaps = await Promise.all(
+      dates.map((d) => getDoc(doc(db, "users", trainerId, "challenges", d)))
+    );
+    let g1 = 0,
+      g2 = 0,
+      g3 = 0;
+    challengeSnaps.forEach((s) => {
+      if (s.exists()) {
+        if (s.data()["目標１"] === "○") g1++;
+        if (s.data()["目標２"] === "○") g2++;
+        if (s.data()["目標３"] === "○") g3++;
+      }
+    });
+
+    return {
+      startLabel: `${start.getMonth() + 1}/${start.getDate()}`,
+      endLabel: `${end.getMonth() + 1}/${end.getDate()}`,
+      weightDiffText,
+      weightDays: weights.length,
+      goal1: g1,
+      goal2: g2,
+      goal3: g3,
+    } as WeeklySummaryData;
+  };
+
+  const handleWeeklySubmit = async (comment: string) => {
+    if (!user || !trainerId || !weeklyData) return;
+    const lines = [
+      "━━━━━━━━━━━━━━━━━━━━━━",
+      `📅 今週のサマリー（${weeklyData.startLabel}〜${weeklyData.endLabel}）`,
+      "━━━━━━━━━━━━━━━━━━━━━━",
+      "",
+      "🥗 食事",
+      "・平均摂取カロリー：1,850 kcal / 2,000 kcal（目標）",
+      "・食事記録日数：5 / 7日",
+      "",
+      "🏃‍♂️ 運動",
+      "・運動消費カロリー：1,200 kcal（合計）",
+      "・平均運動時間：32分 / 日",
+      "・運動実施日数：4 / 7日",
+      "",
+      "⚖️ 体重",
+      `・体重減少量：${weeklyData.weightDiffText}`,
+      `・体重記録日数：${weeklyData.weightDays} / 7日`,
+      "",
+      "🌟 チャレンジ達成状況",
+      `・目標1：${weeklyData.goal1} / 7日`,
+      `・目標2：${weeklyData.goal2} / 7日`,
+      `・目標3：${weeklyData.goal3} / 7日`,
+      "",
+      "━━━━━━━━━━━━━━━━━━━━━━",
+      "📝 今週の総評",
+      "━━━━━━━━━━━━━━━━━━━━━━",
+      comment,
+    ];
+    const text = lines.join("\n");
+    await addDoc(collection(db, "messages"), {
+      text,
+      createdAt: new Date(),
+      userId: user.uid,
+      userEmail: user.email ?? "",
+      peerId: trainerId,
+      participants: [user.uid, trainerId],
+    });
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    const id = start.toISOString().split("T")[0];
+    await setDoc(
+      doc(db, "users", trainerId, "weeklySummaries", id),
+      { comment, createdAt: new Date() },
+      { merge: true }
+    );
+    setWeeklyOpen(false);
+    setSummaryUnread(false);
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
 
   // 認証されたユーザーを取得＋role取得
   useEffect(() => {
@@ -272,7 +383,19 @@ export default function ChatPage() {
     };
     fetch();
   }, [role, trainerId]);
-
+  // 週次サマリー未送信チェック（トレーナー側）
+  useEffect(() => {
+    if (role !== "trainer" || !trainerId) return;
+    const check = async () => {
+      const end = new Date();
+      const start = new Date(end.getTime() - 6 * 86400000);
+      const id = start.toISOString().split("T")[0];
+      const ref = doc(db, "users", trainerId, "weeklySummaries", id);
+      const snap = await getDoc(ref);
+      setSummaryUnread(!snap.exists());
+    };
+    check();
+  }, [role, trainerId]);
   // メッセージ送信＋スクロール
   const handleSend = async () => {
     if (!text.trim() || !user || !trainerId) return;
@@ -403,6 +526,22 @@ export default function ChatPage() {
           onSubmit={handleGoalSubmit}
           initialGoals={goals}
         />
+        <WeeklySummaryModal
+          isOpen={weeklyOpen}
+          onClose={() => setWeeklyOpen(false)}
+          onSubmit={handleWeeklySubmit}
+          data={
+            weeklyData || {
+              startLabel: "",
+              endLabel: "",
+              weightDiffText: "",
+              weightDays: 0,
+              goal1: 0,
+              goal2: 0,
+              goal3: 0,
+            }
+          }
+        />
         {role === "trainer" && (
           <>
             <Link
@@ -420,6 +559,19 @@ export default function ChatPage() {
             >
               過去データ確認
             </Link>
+            <button
+              onClick={async () => {
+                const data = await fetchWeeklyData();
+                if (data) setWeeklyData(data);
+                setWeeklyOpen(true);
+              }}
+              className="relative block mt-2 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center w-full"
+            >
+              今週のサマリー入力
+              {summaryUnread && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
+              )}
+            </button>
           </>
         )}
       </div>
