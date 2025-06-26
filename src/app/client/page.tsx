@@ -1,38 +1,33 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc
-} from 'firebase/firestore';
-import { firebaseApp } from '@/lib/firebase';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseApp } from "@/lib/firebase";
 
 export default function ClientDashboard() {
   const auth = getAuth(firebaseApp);
-  const db   = getFirestore(firebaseApp);
+  const db = getFirestore(firebaseApp);
   const router = useRouter();
 
-  const [user, setUser]         = useState<User | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [trainerId, setTrainer] = useState<string>('');
-  const [inputId, setInputId]   = useState<string>('');
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [trainerId, setTrainer] = useState<string>("");
+  const [inputId, setInputId] = useState<string>("");
 
   // 認証＆trainerId取得
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
-        router.push('/login');
+        router.push("/login");
         return;
       }
       setUser(u);
-      const snap = await getDoc(doc(db, 'users', u.uid));
+      const snap = await getDoc(doc(db, "users", u.uid));
       if (snap.exists()) {
-        setTrainer(snap.data().trainerId || '');
+        setTrainer(snap.data().trainerId || "");
       }
       setLoading(false);
     });
@@ -43,12 +38,12 @@ export default function ClientDashboard() {
   const assignTrainer = async () => {
     if (!user || !inputId.trim()) return;
     await setDoc(
-      doc(db, 'users', user.uid),
+      doc(db, "users", user.uid),
       { trainerId: inputId.trim() },
       { merge: true }
     );
     setTrainer(inputId.trim());
-    setInputId('');
+    setInputId("");
   };
 
   if (loading) return <p>読み込み中…</p>;
@@ -88,6 +83,12 @@ export default function ClientDashboard() {
           </div>
         </>
       )}
+      <Link
+        href="/client/history"
+        className="block mt-4 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"
+      >
+        過去データ確認
+      </Link>
     </div>
   );
 }

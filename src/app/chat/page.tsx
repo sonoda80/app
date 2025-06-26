@@ -20,7 +20,10 @@ import MealModal from "@/components/MealModal";
 import ExerciseModal from "@/components/ExerciseModal";
 import WeightModal from "@/components/WeightModal";
 import ChallengeModal from "@/components/ChallengeModal";
-import ChallengeGoalModal, { ChallengeGoals } from "@/components/ChallengeGoalModal";
+import ChallengeGoalModal, {
+  ChallengeGoals,
+} from "@/components/ChallengeGoalModal";
+import Link from "next/link";
 const db = getFirestore(firebaseApp);
 const auth = getAuth(firebaseApp);
 type Message = {
@@ -47,9 +50,9 @@ export default function ChatPage() {
   const [challengeModalOpen, setChallengeModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [goals, setGoals] = useState<ChallengeGoals>({
-    goal1: '',
-    goal2: '',
-    goal3: '',
+    goal1: "",
+    goal2: "",
+    goal3: "",
   });
 
   /*朝食*/
@@ -181,9 +184,9 @@ export default function ChatPage() {
     );
   };
 
-const handleGoalSubmit = async (newGoals: ChallengeGoals) => {
+  const handleGoalSubmit = async (newGoals: ChallengeGoals) => {
     if (!user) return;
-    const ref = doc(db, 'users', user.uid, 'challengeGoals', 'current');
+    const ref = doc(db, "users", user.uid, "challengeGoals", "current");
     await setDoc(ref, newGoals, { merge: true });
     setGoals(newGoals);
   };
@@ -237,18 +240,18 @@ const handleGoalSubmit = async (newGoals: ChallengeGoals) => {
     return () => unsubscribe();
   }, [user, trainerId]);
 
-// チャレンジ目標の取得
+  // チャレンジ目標の取得
   useEffect(() => {
     if (!user) return;
     const fetchGoals = async () => {
-      const ref = doc(db, 'users', user.uid, 'challengeGoals', 'current');
+      const ref = doc(db, "users", user.uid, "challengeGoals", "current");
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const data = snap.data();
         setGoals({
-          goal1: data.goal1 ?? '',
-          goal2: data.goal2 ?? '',
-          goal3: data.goal3 ?? '',
+          goal1: data.goal1 ?? "",
+          goal2: data.goal2 ?? "",
+          goal3: data.goal3 ?? "",
         });
       }
     };
@@ -366,7 +369,7 @@ const handleGoalSubmit = async (newGoals: ChallengeGoals) => {
           isOpen={challengeModalOpen}
           onClose={() => setChallengeModalOpen(false)}
           onSubmit={handleChallengeSubmit}
-           goals={goals}
+          goals={goals}
           onOpenGoalSetting={() => setGoalModalOpen(true)}
         />
         <ChallengeGoalModal
@@ -376,9 +379,12 @@ const handleGoalSubmit = async (newGoals: ChallengeGoals) => {
           initialGoals={goals}
         />
         {role === "trainer" && (
-          <button className="bg-blue-700 text-white px-3 py-1 rounded">
-            📊 過去データチェック
-          </button>
+          <Link
+            href="/client/history"
+            className="block mt-4 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"
+          >
+            過去データ確認
+          </Link>
         )}
       </div>
     </div>
