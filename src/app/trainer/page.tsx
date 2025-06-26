@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getAuth, onAuthStateChanged, User, signOut } from "firebase/auth";
 import {
   getFirestore,
   collection,
   query,
   where,
   onSnapshot,
-} from 'firebase/firestore';
-import { firebaseApp } from '@/lib/firebase';
+} from "firebase/firestore";
+import { firebaseApp } from "@/lib/firebase";
 
 type Client = {
   uid: string;
@@ -33,16 +33,16 @@ export default function TrainerDashboard() {
     // 認証状態を監視
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       if (!u) {
-        router.push('/login');
+        router.push("/login");
         return;
       }
       setUser(u);
 
       // 自分が担当のクライアントだけを取得
       const q = query(
-        collection(db, 'users'),
-        where('role', '==', 'client'),
-        where('trainerId', '==', u.uid)
+        collection(db, "users"),
+        where("role", "==", "client"),
+        where("trainerId", "==", u.uid)
       );
       const unsubClients = onSnapshot(q, (snap) => {
         const list: Client[] = snap.docs.map((doc) => ({
@@ -61,6 +61,12 @@ export default function TrainerDashboard() {
       };
     });
   }, [auth, db, router]);
+
+  const handleLogout = async () => {
+    if (!window.confirm("ログアウトしますか？")) return;
+    await signOut(auth);
+    router.push("/login");
+  };
 
   if (loading) return <p>読み込み中…</p>;
   if (!user) return null; // onAuthStateChanged でリダイレクト済み
@@ -99,6 +105,12 @@ export default function TrainerDashboard() {
           ))}
         </div>
       )}
+      <button
+        onClick={handleLogout}
+        className="mt-4 w-full bg-gray-500 text-white py-2 rounded hover:bg-gray-600"
+      >
+        ログアウト
+      </button>
     </div>
   );
 }

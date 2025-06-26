@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   getFirestore,
   collection,
@@ -38,6 +38,7 @@ type Message = {
 export default function ChatPage() {
   const searchParams = useSearchParams();
   const trainerId = searchParams.get("trainerId") || "";
+  const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<"client" | "trainer" | null>(null);
@@ -279,6 +280,16 @@ export default function ChatPage() {
   return (
     <div className="max-w-xl mx-auto mt-10 p-4 border rounded shadow">
       <h2 className="text-xl font-bold mb-4">チャット</h2>
+      {role && (
+        <button
+          onClick={() =>
+            router.push(role === "trainer" ? "/trainer" : "/client")
+          }
+          className="text-blue-600 underline mb-4"
+        >
+          ダッシュボードに戻る
+        </button>
+      )}
 
       <div className="mb-4 h-60 overflow-y-auto space-y-2 bg-gray-50 p-2 rounded">
         {msgs.map((m) => {
