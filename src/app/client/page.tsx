@@ -34,6 +34,20 @@ export default function ClientDashboard() {
     return () => unsub();
   }, [auth, db, router]);
 
+  // 初回アンケートチェック
+  useEffect(() => {
+    if (!user) return;
+    const check = async () => {
+      const snap = await getDoc(
+        doc(db, "users", user.uid, "surveys", "initial")
+      );
+      if (!snap.exists()) {
+        router.push("/client/survey");
+      }
+    };
+    check();
+  }, [user, db, router]);
+
   // 担当トレーナー設定
   const assignTrainer = async () => {
     if (!user || !inputId.trim()) return;
@@ -89,6 +103,12 @@ export default function ClientDashboard() {
           </div>
         </>
       )}
+      <Link
+        href="/client/survey"
+        className="block mt-4 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"
+      >
+        アンケートに答える
+      </Link>
       <Link
         href="/client/history"
         className="block mt-4 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"

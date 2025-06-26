@@ -55,6 +55,7 @@ export default function ChatPage() {
     goal2: "",
     goal3: "",
   });
+  const [surveyUnread, setSurveyUnread] = useState(false);
 
   /*朝食*/
   const handleMealSubmit = async (
@@ -259,6 +260,19 @@ export default function ChatPage() {
     fetchGoals();
   }, [user]);
 
+  // アンケート未読チェック（トレーナー側）
+  useEffect(() => {
+    if (role !== "trainer" || !trainerId) return;
+    const fetch = async () => {
+      const ref = doc(db, "users", trainerId, "surveys", "initial");
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        setSurveyUnread(!snap.data().trainerViewed);
+      }
+    };
+    fetch();
+  }, [role, trainerId]);
+
   // メッセージ送信＋スクロール
   const handleSend = async () => {
     if (!text.trim() || !user || !trainerId) return;
@@ -390,12 +404,23 @@ export default function ChatPage() {
           initialGoals={goals}
         />
         {role === "trainer" && (
-          <Link
-            href="/client/history"
-            className="block mt-4 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"
-          >
-            過去データ確認
-          </Link>
+          <>
+            <Link
+              href={`/trainer/survey/${trainerId}`}
+              className="relative block mt-4 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"
+            >
+              アンケート結果
+              {surveyUnread && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full" />
+              )}
+            </Link>
+            <Link
+              href="/client/history"
+              className="block mt-2 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 text-center"
+            >
+              過去データ確認
+            </Link>
+          </>
         )}
       </div>
     </div>
