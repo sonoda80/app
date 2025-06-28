@@ -16,7 +16,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { firebaseApp } from "@/lib/firebase";
-import MealModal from "@/components/MealModal";
+import MealModal, { Totals } from "@/components/MealModal";
 import ExerciseModal from "@/components/ExerciseModal";
 import WeightModal from "@/components/WeightModal";
 import ChallengeModal from "@/components/ChallengeModal";
@@ -65,7 +65,8 @@ export default function ChatPage() {
   /*朝食*/
   const handleMealSubmit = async (
     mealType: "朝食" | "昼食" | "夕食" | "間食",
-    foodInput: string
+    foodInput: string,
+    totals: Totals
   ) => {
     if (!user || !trainerId) return;
     const messageText = `${mealType}：${foodInput}`;
@@ -80,15 +81,14 @@ export default function ChatPage() {
     const today = new Date().toISOString().split("T")[0];
     const mealDocRef = doc(db, "users", user.uid, "meals", today);
     const existing = await getDoc(mealDocRef);
-
+    const data = {
+      [mealType]: foodInput,
+      [`${mealType}_nutrients`]: totals,
+    };
     if (existing.exists()) {
-      await updateDoc(mealDocRef, {
-        [mealType]: foodInput,
-      });
+    await updateDoc(mealDocRef, data);
     } else {
-      await setDoc(mealDocRef, {
-        [mealType]: foodInput,
-      });
+     await setDoc(mealDocRef, data);
     }
     setMealModalOpen(false);
     setTimeout(() => {

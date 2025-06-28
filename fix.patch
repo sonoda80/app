@@ -1,0 +1,134 @@
+  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/src/app/chat/page.tsx b/src/app/chat/page.tsx
+index 06bc9ff2221021ea6515768a3e4cc7e599d519a6..29cef939ecddbdb81ac357fa276a0df227180f04 100644
+--- a/src/app/chat/page.tsx
++++ b/src/app/chat/page.tsx
+@@ -1,116 +1,116 @@
+ "use client";
+ import { useState, useEffect, useRef } from "react";
+ import { useSearchParams, useRouter } from "next/navigation";
+ import {
+   getFirestore,
+   collection,
+   addDoc,
+   onSnapshot,
+   query,
+   orderBy,
+   where,
+   doc,
+   getDoc,
+   setDoc,
+   updateDoc,
+ } from "firebase/firestore";
+ import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+ import { firebaseApp } from "@/lib/firebase";
+-import MealModal from "@/components/MealModal";
++import MealModal, { Totals } from "@/components/MealModal";
+ import ExerciseModal from "@/components/ExerciseModal";
+ import WeightModal from "@/components/WeightModal";
+ import ChallengeModal from "@/components/ChallengeModal";
+ import ChallengeGoalModal, {
+   ChallengeGoals,
+ } from "@/components/ChallengeGoalModal";
+ import WeeklySummaryModal, {
+   WeeklySummaryData,
+ } from "@/components/WeeklySummaryModal";
+ import Link from "next/link";
+ const db = getFirestore(firebaseApp);
+ const auth = getAuth(firebaseApp);
+ type Message = {
+   id: string;
+   text: string;
+   createdAt: Date;
+   userEmail?: string;
+   userId?: string;
+   peerId?: string;
+ };
+ 
+ export default function ChatPage() {
+   const searchParams = useSearchParams();
+   const trainerId = searchParams.get("trainerId") || "";
+   const router = useRouter();
+ 
+   const [user, setUser] = useState<User | null>(null);
+   const [role, setRole] = useState<"client" | "trainer" | null>(null);
+   const [text, setText] = useState("");
+   const [msgs, setMsgs] = useState<Message[]>([]);
+   const bottomRef = useRef<HTMLDivElement | null>(null);
+   const [mealModalOpen, setMealModalOpen] = useState(false);
+   const [exerciseModalOpen, setExerciseModalOpen] = useState(false);
+   const [weightModalOpen, setWeightModalOpen] = useState(false);
+   const [challengeModalOpen, setChallengeModalOpen] = useState(false);
+   const [goalModalOpen, setGoalModalOpen] = useState(false);
+   const [goals, setGoals] = useState<ChallengeGoals>({
+     goal1: "",
+     goal2: "",
+     goal3: "",
+   });
+   const [surveyUnread, setSurveyUnread] = useState(false);
+   const [weeklyOpen, setWeeklyOpen] = useState(false);
+   const [summaryUnread, setSummaryUnread] = useState(false);
+   const [weeklyData, setWeeklyData] = useState<WeeklySummaryData | null>(null);
+   /*朝食*/
+   const handleMealSubmit = async (
+     mealType: "朝食" | "昼食" | "夕食" | "間食",
+-    foodInput: string
++    foodInput: string,
++    totals: Totals
+   ) => {
+     if (!user || !trainerId) return;
+     const messageText = `${mealType}：${foodInput}`;
+     await addDoc(collection(db, "messages"), {
+       text: messageText,
+       createdAt: new Date(),
+       userId: user.uid,
+       userEmail: user.email ?? "",
+       peerId: trainerId,
+       participants: [user.uid, trainerId],
+     });
+     const today = new Date().toISOString().split("T")[0];
+     const mealDocRef = doc(db, "users", user.uid, "meals", today);
+     const existing = await getDoc(mealDocRef);
+-
++    const data = {
++      [mealType]: foodInput,
++      [`${mealType}_nutrients`]: totals,
++    };
+     if (existing.exists()) {
+-      await updateDoc(mealDocRef, {
+-        [mealType]: foodInput,
+-      });
++      await updateDoc(mealDocRef, data);
+     } else {
+-      await setDoc(mealDocRef, {
+-        [mealType]: foodInput,
+-      });
++      await setDoc(mealDocRef, data);
+     }
+     setMealModalOpen(false);
+     setTimeout(() => {
+       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+     }, 100);
+   };
+ 
+   /*運動*/
+   const handleExerciseSubmit = async (exerciseName: string, detail: string) => {
+     if (!user || !trainerId) return;
+ 
+     const messageText = `🏃‍♂️運動記録\n種目：${exerciseName}\n内容：${detail}`;
+ 
+     await addDoc(collection(db, "messages"), {
+       text: messageText,
+       createdAt: new Date(),
+       userId: user.uid,
+       userEmail: user.email ?? "",
+       peerId: trainerId,
+       participants: [user.uid, trainerId],
+     });
+     const today = new Date().toISOString().split("T")[0];
+     const exerciseDocRef = doc(db, "users", user.uid, "exercises", today);
+     const existing = await getDoc(exerciseDocRef);
+ 
+ 
+EOF
+)
